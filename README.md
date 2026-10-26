@@ -1,40 +1,81 @@
 # CS Mobile App (Community Service)
 
-Flutter app para sa monitoring, scheduling at rescheduling ng community service duties.
+A Flutter app for monitoring, scheduling, and rescheduling community-service
+duties. App data is stored in MySQL; a PHP API connects Flutter to XAMPP.
+Do not connect Flutter directly to MySQL.
 
-## Paano patakbuhin
+## XAMPP setup
 
-Ang folder na ito ay may `lib/` at `pubspec.yaml` lang. Kailangan pang gawin ang android/ios folders:
+1. Open the XAMPP Control Panel and start **Apache** and **MySQL**.
+2. Copy the contents of `api/` to `C:\xampp\htdocs\cs_bmc_api\`. The API file
+   should be at `C:\xampp\htdocs\cs_bmc_api\index.php`.
+3. Open `http://localhost/phpmyadmin`, select **Import**, and import
+   `api/schema.sql`. This creates the `cs_bmc` database and its tables.
+   If the database already exists, import `api/migrations/001_profile_photo.sql`
+   to add the profile photo column.
+4. Create an admin account in PowerShell:
 
-```bash
-cd cs_mobile_app
-flutter create .          # gumagawa ng android/, ios/, web/ nang hindi binubura ang lib/
-flutter pub get
-flutter run
-```
+   ```powershell
+   cd C:\xampp\htdocs\cs_bmc_api
+   php seed_admin.php admin@school.edu "ReplaceWithAStrongPassword" "OSA Admin"
+   ```
 
-## Demo accounts
+   Remember the password you chose; you will use it to log in as admin.
 
-- Admin (OSA): `admin@school.edu` / `admin123`
-- Student: mag-register sa loob ng app (Register button)
+5. From the project folder, install Flutter packages and run the app in a
+   browser:
 
-## Features (ayon sa concept paper)
+   ```powershell
+   cd C:\cs\cs_bmc
+   flutter pub get
+   flutter run -d chrome
+   ```
 
-| Feature | Nasaan |
+   Default API address: `http://localhost/cs_bmc_api/index.php`.
+
+### Android emulator or physical device
+
+- Android emulator: run Flutter with
+  `flutter run --dart-define=API_BASE_URL=http://10.0.2.2/cs_bmc_api/index.php`.
+- Physical Android device: connect the phone and computer to the same network,
+  find the computer's LAN IPv4 address (`ipconfig`), and use it in the API URL.
+  For example:
+  `flutter run --dart-define=API_BASE_URL=http://192.168.1.10/cs_bmc_api/index.php`.
+- Allow Apache through Windows Firewall if prompted. HTTP/cleartext is for local
+  development only; use HTTPS before deploying to the internet.
+
+If the MySQL database name or credentials differ, set `CS_BMC_DB_HOST`,
+`CS_BMC_DB_NAME`, `CS_BMC_DB_USER`, and `CS_BMC_DB_PASSWORD` in the Apache/PHP
+environment.
+
+## Database and security
+
+- `api/schema.sql` defines the MySQL schema (`users`, `records`, and `api_tokens`).
+- `api/migrations/001_profile_photo.sql` adds the profile photo field to
+  databases created before profile photos were added.
+- Profile photos accept JPG, PNG, and WebP files up to 5 MB. Uploaded files are
+  stored in `api/uploads/profiles/`.
+- `api/index.php` is the JSON API for authentication and record operations.
+- `api/config.php` contains the database connection settings. Default XAMPP
+  values are `127.0.0.1`, database `cs_bmc`, user `root`, and a blank password.
+  Change these for your local MySQL configuration.
+- Passwords are hashed on the server with PHP `password_hash`; the Flutter app
+  does not store passwords. Only the login token is saved on the device.
+- Do not expose the default XAMPP configuration to the public internet. Set a
+  strong MySQL password and use HTTPS in production.
+- Existing demo accounts and records saved in `shared_preferences` are not
+  automatically transferred to MySQL. Register again or create an admin with
+  `seed_admin.php`.
+
+## Features
+
+| Feature | Location |
 |---|---|
-| User registration at login | `lib/screens/auth_screen.dart` |
-| User profile (admin at student) | Profile tab, `home_screen.dart` |
-| Dashboard | Dashboard tab (stats + susunod na duty) |
-| Add records | Admin: Records tab, "Add record" |
-| View records / ticket | Records tab at `record_detail.dart` (digital CS ticket) |
-| Search at filter | Records tab (search bar + status chips) |
-| Edit/update records | Admin: Edit icon, o "Mag-add ng rendered hours" |
-| Delete records | Admin: Delete icon sa ticket |
-| Schedule / reschedule duty | Ticket screen, "I-reschedule ang duty" |
-| Local data storage | `shared_preferences` (`lib/store.dart`) |
-
-## Mga limitasyon
-
-- Walang notifications (nakasaad sa Project Limitations ng concept paper).
-- Local storage lang ito: naka-save sa phone, hindi naka-sync sa ibang device. Kung gusto ninyo ng shared database (Firebase o Supabase), palitan lang ang `lib/store.dart`.
-- Plain text ang password sa local storage. Pang-demo lang ito, hindi pang-production.
+| User registration and login | `lib/screens/auth_screen.dart`, `api/index.php` |
+| Editable profile information and photo | Profile tab, `lib/screens/home_screen.dart` |
+| Profile photos in dashboard and records | Dashboard, record cards, and ticket details |
+| Dashboard and duty schedule | Dashboard tab |
+| Add, edit, and delete records | Records tab and ticket screen |
+| View records and tickets | `lib/screens/record_detail.dart` |
+| Search and status filters | Records tab |
+| Local MySQL persistence | XAMPP MySQL through the PHP API |
